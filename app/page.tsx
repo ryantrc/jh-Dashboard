@@ -1,5 +1,6 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 
 type DataSource = "base" | "manual";
@@ -30,6 +31,19 @@ type Quote = {
   };
 };
 
+type QuoteFormState = {
+  companyId: string;
+  planName: string;
+  planType: Quote["planType"];
+  contractMonths: string;
+  rate: string;
+  gstStatus: GstStatus;
+  thirdPartyCharge: string;
+  rangeMin: string;
+  rangeMax: string;
+  notes: string;
+};
+
 const companies: Company[] = [
   { id: "geneco", name: "Geneco" },
   { id: "flo", name: "Flo Energy" },
@@ -38,7 +52,7 @@ const companies: Company[] = [
   { id: "tuas", name: "Tuas Power", isOwnCompany: true },
 ];
 
-const quotes: Quote[] = [
+const initialQuotes: Quote[] = [
   {
     id: "base-geneco-12",
     source: "base",
@@ -289,17 +303,92 @@ function getCompanyName(companyId: string) {
   return companies.find((company) => company.id === companyId)?.name ?? companyId;
 }
 
+function getTodayDate() {
+  return new Date().toLocaleDateString("en-CA");
+}
+
+function createEmptyQuoteForm(companyId = companies[0].id): QuoteFormState {
+  return {
+    companyId,
+    planName: "",
+    planType: "Custom Quote",
+    contractMonths: "24",
+    rate: "",
+    gstStatus: "included",
+    thirdPartyCharge: "",
+    rangeMin: "",
+    rangeMax: "",
+    notes: "",
+  };
+}
+
 export default function Home() {
+  const [quotes, setQuotes] = useState<Quote[]>(initialQuotes);
   const [activeSource, setActiveSource] = useState<DataSource>("base");
   const [activeCompanyId, setActiveCompanyId] = useState(companies[0].id);
   const [contractFilter, setContractFilter] = useState("all");
   const [gstFilter, setGstFilter] = useState("all");
   const [planTypeFilter, setPlanTypeFilter] = useState("all");
   const [searchFilter, setSearchFilter] = useState("");
+  const [quoteForm, setQuoteForm] = useState<QuoteFormState>(() =>
+    createEmptyQuoteForm(companies[0].id),
+  );
+
+  function updateQuoteForm<Value extends keyof QuoteFormState>(
+    field: Value,
+    value: QuoteFormState[Value],
+  ) {
+    setQuoteForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function handleAddManualQuote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const rate = Number(quoteForm.rate);
+    const thirdPartyCharge =
+      quoteForm.thirdPartyCharge.trim() === "" ? 0 : Number(quoteForm.thirdPartyCharge);
+    const contractMonths = Number(quoteForm.contractMonths);
+    const rangeMin = quoteForm.rangeMin.trim() === "" ? null : Number(quoteForm.rangeMin);
+    const rangeMax = quoteForm.rangeMax.trim() === "" ? null : Number(quoteForm.rangeMax);
+
+    if (!quoteForm.planName.trim() || !rate || !contractMonths) {
+      return;
+    }
+
+    const hasValidRange =
+      rangeMin !== null && rangeMax !== null && !Number.isNaN(rangeMin) && !Number.isNaN(rangeMax);
+
+    const newQuote: Quote = {
+      id: `manual-${quoteForm.companyId}-${Date.now()}`,
+      source: "manual",
+      companyId: quoteForm.companyId,
+      planName: quoteForm.planName.trim(),
+      planType: quoteForm.planType,
+      contractMonths,
+      rate,
+      gstStatus: quoteForm.gstStatus,
+      thirdPartyCharge: Number.isNaN(thirdPartyCharge) ? 0 : thirdPartyCharge,
+      effectiveRate: rate + (Number.isNaN(thirdPartyCharge) ? 0 : thirdPartyCharge),
+      updatedAt: getTodayDate(),
+      notes: quoteForm.notes.trim() || "Manually entered quote.",
+      quoteRange: hasValidRange ? { min: rangeMin, max: rangeMax } : undefined,
+    };
+
+    setQuotes((current) => [newQuote, ...current]);
+    setActiveCompanyId(quoteForm.companyId);
+    setContractFilter("all");
+    setGstFilter("all");
+    setPlanTypeFilter("all");
+    setSearchFilter("");
+    setQuoteForm(createEmptyQuoteForm(quoteForm.companyId));
+  }
 
   const sourceQuotes = useMemo(
     () => quotes.filter((quote) => quote.source === activeSource),
-    [activeSource],
+    [activeSource, quotes],
   );
 
   const filteredQuotes = useMemo(() => {
@@ -435,10 +524,149 @@ export default function Home() {
                 type="button"
               >
                 {company.name}
-                {company.isOwnCompany ? " (Our Company)" : ""}
               </button>
             ))}
           </div>
+
+          {activeSource === "manual" ? (
+            <form className="manual-form" onSubmit={handleAddManualQuote}>
+              <div className="manual-form-header">
+                <div>
+                  <h3>Add user-inputted quote</h3>
+                  <p>Enter a customer quote here. It will be added to the current dashboard view.</p>
+                </div>
+                <button className="primary-button" type="submit">
+                  Add quote
+                </button>
+              </div>
+
+              <div className="manual-form-grid">
+                <div className="field">
+                  <label htmlFor="quote-company">Retailer</label>
+                  <select
+                    id="quote-company"
+                    onChange={(event) => updateQuoteForm("companyId", event.target.value)}
+                    value={quoteForm.companyId}
+                  >
+                    {companies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="quote-plan">Plan or quote name</label>
+                  <input
+                    id="quote-plan"
+                    onChange={(event) => updateQuoteForm("planName", event.target.value)}
+                    placeholder="e.g. Customer WhatsApp Quote"
+                    required
+                    value={quoteForm.planName}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="quote-type">Plan type</label>
+                  <select
+                    id="quote-type"
+                    onChange={(event) =>
+                      updateQuoteForm("planType", event.target.value as Quote["planType"])
+                    }
+                    value={quoteForm.planType}
+                  >
+                    <option value="Custom Quote">Custom Quote</option>
+                    <option value="Fixed">Fixed</option>
+                    <option value="Discount Off Tariff">Discount Off Tariff</option>
+                    <option value="Promotional">Promotional</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="quote-months">Contract months</label>
+                  <input
+                    id="quote-months"
+                    min="1"
+                    onChange={(event) => updateQuoteForm("contractMonths", event.target.value)}
+                    required
+                    type="number"
+                    value={quoteForm.contractMonths}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="quote-rate">Listed rate /kWh</label>
+                  <input
+                    id="quote-rate"
+                    min="0"
+                    onChange={(event) => updateQuoteForm("rate", event.target.value)}
+                    placeholder="0.2940"
+                    required
+                    step="0.0001"
+                    type="number"
+                    value={quoteForm.rate}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="quote-gst">GST status</label>
+                  <select
+                    id="quote-gst"
+                    onChange={(event) =>
+                      updateQuoteForm("gstStatus", event.target.value as GstStatus)
+                    }
+                    value={quoteForm.gstStatus}
+                  >
+                    <option value="included">GST included</option>
+                    <option value="excluded">GST excluded</option>
+                    <option value="unknown">GST not stated</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="quote-third-party">Third-party charge /kWh</label>
+                  <input
+                    id="quote-third-party"
+                    min="0"
+                    onChange={(event) => updateQuoteForm("thirdPartyCharge", event.target.value)}
+                    placeholder="0.0000"
+                    step="0.0001"
+                    type="number"
+                    value={quoteForm.thirdPartyCharge}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="quote-range-min">Range min /kWh</label>
+                  <input
+                    id="quote-range-min"
+                    min="0"
+                    onChange={(event) => updateQuoteForm("rangeMin", event.target.value)}
+                    placeholder="Optional"
+                    step="0.0001"
+                    type="number"
+                    value={quoteForm.rangeMin}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="quote-range-max">Range max /kWh</label>
+                  <input
+                    id="quote-range-max"
+                    min="0"
+                    onChange={(event) => updateQuoteForm("rangeMax", event.target.value)}
+                    placeholder="Optional"
+                    step="0.0001"
+                    type="number"
+                    value={quoteForm.rangeMax}
+                  />
+                </div>
+                <div className="field notes-field">
+                  <label htmlFor="quote-notes">Notes</label>
+                  <textarea
+                    id="quote-notes"
+                    onChange={(event) => updateQuoteForm("notes", event.target.value)}
+                    placeholder="Source, customer segment, screenshot reference, or caveats"
+                    rows={3}
+                    value={quoteForm.notes}
+                  />
+                </div>
+              </div>
+            </form>
+          ) : null}
 
           <div className="filters" aria-label="Quote filters">
             <div className="field">

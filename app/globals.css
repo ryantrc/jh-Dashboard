@@ -238,7 +238,8 @@ h1 {
 }
 
 .field select,
-.field input {
+.field input,
+.field textarea {
   background: #ffffff;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
@@ -246,6 +247,64 @@ h1 {
   min-height: 40px;
   padding: 8px 10px;
   width: 100%;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.manual-form {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 18px;
+  padding: 16px;
+}
+
+.manual-form-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.manual-form-header h3 {
+  font-size: 17px;
+  margin: 0 0 4px;
+}
+
+.manual-form-header p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.manual-form-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.notes-field {
+  grid-column: span 3;
+}
+
+.primary-button {
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  border-radius: 8px;
+  color: #ffffff;
+  font-weight: 800;
+  min-height: 40px;
+  padding: 9px 14px;
+  white-space: nowrap;
+}
+
+.primary-button:hover {
+  background: var(--brand-strong);
+  border-color: var(--brand-strong);
 }
 
 .content-grid {
