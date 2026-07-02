@@ -63,7 +63,14 @@ type CustomerQuoteRow = {
   created_at: string | null;
 };
 
-const companies: Company[] = [
+type CompanyRow = {
+  id: string;
+  name: string;
+  display_order: number | null;
+  is_active: boolean | null;
+};
+
+const fallbackCompanies: Company[] = [
   { id: "geneco", name: "Geneco" },
   { id: "flo", name: "Flo Energy" },
   { id: "pacific-light", name: "Pacific Light" },
@@ -318,7 +325,7 @@ function formatRate(rate: number) {
   return `$${rate.toFixed(4)}`;
 }
 
-function getCompanyName(companyId: string) {
+function getCompanyName(companyId: string, companies: Company[]) {
   return companies.find((company) => company.id === companyId)?.name ?? companyId;
 }
 
@@ -326,7 +333,7 @@ function getTodayDate() {
   return new Date().toLocaleDateString("en-CA");
 }
 
-function createEmptyQuoteForm(companyId = companies[0].id): QuoteFormState {
+function createEmptyQuoteForm(companyId = fallbackCompanies[0].id): QuoteFormState {
   return {
     companyId,
     planName: "",
@@ -338,6 +345,14 @@ function createEmptyQuoteForm(companyId = companies[0].id): QuoteFormState {
     rangeMin: "",
     rangeMax: "",
     notes: "",
+  };
+}
+
+function mapCompanyRow(row: CompanyRow): Company {
+  return {
+    id: row.id,
+    name: row.name,
+    isOwnCompany: row.id === "tuas",
   };
 }
 
@@ -365,19 +380,68 @@ function mapCustomerQuoteRow(row: CustomerQuoteRow): Quote {
 }
 
 export default function Home() {
+  const [companies, setCompanies] = useState<Company[]>(fallbackCompanies);
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes);
   const [activeSource, setActiveSource] = useState<DataSource>("base");
-  const [activeCompanyId, setActiveCompanyId] = useState(companies[0].id);
+  const [activeCompanyId, setActiveCompanyId] = useState(fallbackCompanies[0].id);
   const [contractFilter, setContractFilter] = useState("all");
   const [gstFilter, setGstFilter] = useState("all");
   const [planTypeFilter, setPlanTypeFilter] = useState("all");
   const [searchFilter, setSearchFilter] = useState("");
   const [quoteForm, setQuoteForm] = useState<QuoteFormState>(() =>
-    createEmptyQuoteForm(companies[0].id),
+    createEmptyQuoteForm(fallbackCompanies[0].id),
   );
   const [isSavingQuote, setIsSavingQuote] = useState(false);
   const [quoteFormMessage, setQuoteFormMessage] = useState("");
+  const [companyLoadMessage, setCompanyLoadMessage] = useState("");
   const [customerQuoteLoadMessage, setCustomerQuoteLoadMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCompanies() {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id,name,display_order,is_active")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (error) {
+        setCompanyLoadMessage(`Could not load companies: ${error.message}`);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setCompanyLoadMessage("No Supabase companies found. Showing fallback companies.");
+        return;
+      }
+
+      const loadedCompanies = (data as CompanyRow[]).map(mapCompanyRow);
+      const firstCompanyId = loadedCompanies[0].id;
+
+      setCompanies(loadedCompanies);
+      setActiveCompanyId((current) =>
+        loadedCompanies.some((company) => company.id === current) ? current : firstCompanyId,
+      );
+      setQuoteForm((current) => ({
+        ...current,
+        companyId: loadedCompanies.some((company) => company.id === current.companyId)
+          ? current.companyId
+          : firstCompanyId,
+      }));
+      setCompanyLoadMessage(`${loadedCompanies.length} companies loaded.`);
+    }
+
+    loadCompanies();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -516,13 +580,13 @@ export default function Home() {
       const matchesSearch =
         searchFilter.trim() === "" ||
         quote.planName.toLowerCase().includes(searchFilter.trim().toLowerCase()) ||
-        getCompanyName(quote.companyId)
+        getCompanyName(quote.companyId, companies)
           .toLowerCase()
           .includes(searchFilter.trim().toLowerCase());
 
       return matchesContract && matchesGst && matchesPlan && matchesSearch;
     });
-  }, [contractFilter, gstFilter, planTypeFilter, searchFilter, sourceQuotes]);
+  }, [companies, contractFilter, gstFilter, planTypeFilter, searchFilter, sourceQuotes]);
 
   const activeCompanyQuotes = filteredQuotes.filter(
     (quote) => quote.companyId === activeCompanyId,
@@ -583,7 +647,9 @@ export default function Home() {
               {bestQuote ? `${formatRate(bestQuote.effectiveRate)}` : "-"}
             </p>
             <p className="summary-note">
-              {bestQuote ? `${getCompanyName(bestQuote.companyId)} - ${bestQuote.planName}` : "-"}
+              {bestQuote
+                ? `${getCompanyName(bestQuote.companyId, companies)} - ${bestQuote.planName}`
+                : "-"}
             </p>
           </div>
           <div className="summary-card">
@@ -603,7 +669,7 @@ export default function Home() {
                 key={source}
                 onClick={() => {
                   setActiveSource(source);
-                  setActiveCompanyId(companies[0].id);
+                  setActiveCompanyId(companies[0]?.id ?? fallbackCompanies[0].id);
                   setContractFilter("all");
                   setGstFilter("all");
                   setPlanTypeFilter("all");
@@ -782,6 +848,7 @@ export default function Home() {
                 </div>
               </div>
               {quoteFormMessage ? <p className="form-message">{quoteFormMessage}</p> : null}
+              {companyLoadMessage ? <p className="form-message">{companyLoadMessage}</p> : null}
               {customerQuoteLoadMessage ? (
                 <p className="form-message">{customerQuoteLoadMessage}</p>
               ) : null}
@@ -847,7 +914,7 @@ export default function Home() {
           <div className="content-grid">
             <section className="company-panel" aria-label="Company rates">
               <div className="company-panel-header">
-                <h3>{getCompanyName(activeCompanyId)} rates</h3>
+                <h3>{getCompanyName(activeCompanyId, companies)} rates</h3>
                 <span className="summary-note">
                   {activeCompanyQuotes.length} matching quote
                   {activeCompanyQuotes.length === 1 ? "" : "s"}
@@ -936,7 +1003,7 @@ export default function Home() {
                   <tbody>
                     {activeCompanyQuotes.map((quote) => (
                       <tr key={`${quote.id}-row`}>
-                        <td>{getCompanyName(quote.companyId)}</td>
+                        <td>{getCompanyName(quote.companyId, companies)}</td>
                         <td>{quote.planName}</td>
                         <td>{quote.contractMonths}</td>
                         <td>{gstLabels[quote.gstStatus]}</td>
@@ -965,7 +1032,7 @@ export default function Home() {
                   >
                     <span>
                       <span className="comparison-name">
-                        {getCompanyName(quote.companyId)}
+                        {getCompanyName(quote.companyId, companies)}
                       </span>
                       <span className="comparison-plan">
                         {quote.planName} - {quote.contractMonths} months
