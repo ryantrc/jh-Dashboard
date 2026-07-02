@@ -63,6 +63,22 @@ type CustomerQuoteRow = {
   created_at: string | null;
 };
 
+type WebsitePriceRow = {
+  id: number;
+  company_id: string;
+  plan_name: string;
+  plan_type: Quote["planType"];
+  contract_months: number;
+  rate: number | string;
+  gst_status: GstStatus;
+  third_party_charge: number | string | null;
+  effective_rate: number | string;
+  notes: string | null;
+  price_date: string | null;
+  updated_at: string | null;
+  created_at: string | null;
+};
+
 type CompanyRow = {
   id: string;
   name: string;
@@ -78,237 +94,7 @@ const fallbackCompanies: Company[] = [
   { id: "tuas", name: "Tuas Power", isOwnCompany: true },
 ];
 
-const initialQuotes: Quote[] = [
-  {
-    id: "base-geneco-12",
-    source: "base",
-    companyId: "geneco",
-    planName: "Get It Fixed 12",
-    planType: "Fixed",
-    contractMonths: 12,
-    rate: 0.3018,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.3018,
-    updatedAt: "2026-06-29",
-    notes: "Sample website listed rate. Replace with scraped data later.",
-  },
-  {
-    id: "base-geneco-24",
-    source: "base",
-    companyId: "geneco",
-    planName: "Get It Fixed 24",
-    planType: "Fixed",
-    contractMonths: 24,
-    rate: 0.2988,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.2988,
-    updatedAt: "2026-06-29",
-    notes: "Sample website listed rate.",
-  },
-  {
-    id: "base-flo-12",
-    source: "base",
-    companyId: "flo",
-    planName: "Fixed Saver 12",
-    planType: "Fixed",
-    contractMonths: 12,
-    rate: 0.2999,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.2999,
-    updatedAt: "2026-06-29",
-    notes: "Sample website listed rate.",
-  },
-  {
-    id: "base-flo-24",
-    source: "base",
-    companyId: "flo",
-    planName: "Fixed Saver 24",
-    planType: "Fixed",
-    contractMonths: 24,
-    rate: 0.2969,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.2969,
-    updatedAt: "2026-06-29",
-    notes: "Sample website listed rate.",
-  },
-  {
-    id: "base-pacific-12",
-    source: "base",
-    companyId: "pacific-light",
-    planName: "PowerFIX 12",
-    planType: "Fixed",
-    contractMonths: 12,
-    rate: 0.2971,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.2971,
-    updatedAt: "2026-06-29",
-    notes: "Sample based on the provided screenshot structure.",
-  },
-  {
-    id: "base-pacific-24",
-    source: "base",
-    companyId: "pacific-light",
-    planName: "PowerFIX 24",
-    planType: "Fixed",
-    contractMonths: 24,
-    rate: 0.2971,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.2971,
-    updatedAt: "2026-06-29",
-    notes: "Sample based on the provided screenshot structure.",
-  },
-  {
-    id: "base-pacific-36",
-    source: "base",
-    companyId: "pacific-light",
-    planName: "PowerFIX 36",
-    planType: "Fixed",
-    contractMonths: 36,
-    rate: 0.296,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.296,
-    updatedAt: "2026-06-29",
-    notes: "Sample based on the provided screenshot structure.",
-  },
-  {
-    id: "base-senoko-12",
-    source: "base",
-    companyId: "senoko",
-    planName: "LifePower 12",
-    planType: "Fixed",
-    contractMonths: 12,
-    rate: 0.2925,
-    gstStatus: "included",
-    thirdPartyCharge: 0.0083,
-    effectiveRate: 0.3008,
-    updatedAt: "2026-06-29",
-    notes: "Sample rate with third-party charge added for comparison.",
-  },
-  {
-    id: "base-senoko-24",
-    source: "base",
-    companyId: "senoko",
-    planName: "LifePower 24",
-    planType: "Fixed",
-    contractMonths: 24,
-    rate: 0.291,
-    gstStatus: "included",
-    thirdPartyCharge: 0.0083,
-    effectiveRate: 0.2993,
-    updatedAt: "2026-06-29",
-    notes: "Sample rate with third-party charge added for comparison.",
-  },
-  {
-    id: "base-tuas-12",
-    source: "base",
-    companyId: "tuas",
-    planName: "PowerDo 12",
-    planType: "Fixed",
-    contractMonths: 12,
-    rate: 0.298,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.298,
-    updatedAt: "2026-06-29",
-    notes: "Internal sample for Tuas Power.",
-  },
-  {
-    id: "base-tuas-24",
-    source: "base",
-    companyId: "tuas",
-    planName: "PowerDo 24",
-    planType: "Fixed",
-    contractMonths: 24,
-    rate: 0.2965,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.2965,
-    updatedAt: "2026-06-29",
-    notes: "Internal sample for Tuas Power.",
-  },
-  {
-    id: "manual-geneco-24",
-    source: "manual",
-    companyId: "geneco",
-    planName: "Sales Quote A",
-    planType: "Custom Quote",
-    contractMonths: 24,
-    rate: 0.294,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.294,
-    updatedAt: "2026-06-28",
-    notes: "Sample employee-entered quote from a customer conversation.",
-    quoteRange: { min: 0.293, max: 0.296 },
-  },
-  {
-    id: "manual-flo-24",
-    source: "manual",
-    companyId: "flo",
-    planName: "Retention Quote",
-    planType: "Custom Quote",
-    contractMonths: 24,
-    rate: 0.2955,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.2955,
-    updatedAt: "2026-06-27",
-    notes: "Sample manual quote.",
-    quoteRange: { min: 0.2945, max: 0.297 },
-  },
-  {
-    id: "manual-pacific-36",
-    source: "manual",
-    companyId: "pacific-light",
-    planName: "Customer Screenshot Quote",
-    planType: "Custom Quote",
-    contractMonths: 36,
-    rate: 0.2938,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.2938,
-    updatedAt: "2026-06-28",
-    notes: "Sample manual quote.",
-    quoteRange: { min: 0.293, max: 0.295 },
-  },
-  {
-    id: "manual-senoko-24",
-    source: "manual",
-    companyId: "senoko",
-    planName: "Phone Quote",
-    planType: "Custom Quote",
-    contractMonths: 24,
-    rate: 0.2895,
-    gstStatus: "excluded",
-    thirdPartyCharge: 0.0083,
-    effectiveRate: 0.2978,
-    updatedAt: "2026-06-26",
-    notes: "Sample manual quote. Effective rate includes third-party charge only.",
-    quoteRange: { min: 0.288, max: 0.291 },
-  },
-  {
-    id: "manual-tuas-24",
-    source: "manual",
-    companyId: "tuas",
-    planName: "Internal Counter Offer",
-    planType: "Custom Quote",
-    contractMonths: 24,
-    rate: 0.2928,
-    gstStatus: "included",
-    thirdPartyCharge: 0,
-    effectiveRate: 0.2928,
-    updatedAt: "2026-06-29",
-    notes: "Sample own-company quote.",
-    quoteRange: { min: 0.292, max: 0.294 },
-  },
-];
+const initialQuotes: Quote[] = [];
 
 const sourceLabels: Record<DataSource, string> = {
   base: "Website/Base Prices",
@@ -379,6 +165,23 @@ function mapCustomerQuoteRow(row: CustomerQuoteRow): Quote {
   };
 }
 
+function mapWebsitePriceRow(row: WebsitePriceRow): Quote {
+  return {
+    id: `base-${row.id}`,
+    source: "base",
+    companyId: row.company_id,
+    planName: row.plan_name,
+    planType: row.plan_type,
+    contractMonths: row.contract_months,
+    rate: Number(row.rate),
+    gstStatus: row.gst_status,
+    thirdPartyCharge: row.third_party_charge === null ? 0 : Number(row.third_party_charge),
+    effectiveRate: Number(row.effective_rate),
+    updatedAt: row.price_date ?? row.updated_at ?? row.created_at ?? "No date",
+    notes: row.notes ?? "",
+  };
+}
+
 export default function Home() {
   const [companies, setCompanies] = useState<Company[]>(fallbackCompanies);
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes);
@@ -394,6 +197,7 @@ export default function Home() {
   const [isSavingQuote, setIsSavingQuote] = useState(false);
   const [quoteFormMessage, setQuoteFormMessage] = useState("");
   const [companyLoadMessage, setCompanyLoadMessage] = useState("");
+  const [websitePriceLoadMessage, setWebsitePriceLoadMessage] = useState("");
   const [customerQuoteLoadMessage, setCustomerQuoteLoadMessage] = useState("");
 
   useEffect(() => {
@@ -446,6 +250,40 @@ export default function Home() {
   useEffect(() => {
     let isMounted = true;
 
+    async function loadWebsitePrices() {
+      const { data, error } = await supabase
+        .from("website_prices")
+        .select("*")
+        .order("price_date", { ascending: false });
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (error) {
+        setWebsitePriceLoadMessage(`Could not load website prices: ${error.message}`);
+        return;
+      }
+
+      const websitePrices = data ? (data as WebsitePriceRow[]).map(mapWebsitePriceRow) : [];
+
+      setQuotes((current) => [
+        ...websitePrices,
+        ...current.filter((quote) => quote.source !== "base"),
+      ]);
+      setWebsitePriceLoadMessage(`${websitePrices.length} website price(s) loaded.`);
+    }
+
+    loadWebsitePrices();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
     async function loadCustomerQuotes() {
       const { data, error } = await supabase
         .from("customer_quotes")
@@ -461,15 +299,12 @@ export default function Home() {
         return;
       }
 
-      if (!data || data.length === 0) {
-        setCustomerQuoteLoadMessage("No saved Supabase quotes yet. Showing sample manual quotes.");
-        return;
-      }
+      const customerQuotes = data ? (data as CustomerQuoteRow[]).map(mapCustomerQuoteRow) : [];
 
-      const baseQuotes = initialQuotes.filter((quote) => quote.source === "base");
-      const customerQuotes = (data as CustomerQuoteRow[]).map(mapCustomerQuoteRow);
-
-      setQuotes([...baseQuotes, ...customerQuotes]);
+      setQuotes((current) => [
+        ...current.filter((quote) => quote.source !== "manual"),
+        ...customerQuotes,
+      ]);
       setCustomerQuoteLoadMessage(`${customerQuotes.length} saved customer quote(s) loaded.`);
     }
 
@@ -623,7 +458,7 @@ export default function Home() {
           <div className="topbar-actions">
             <span className="status-pill">
               <span className="status-dot" />
-              Sample data
+              Supabase data
             </span>
           </div>
         </div>
@@ -688,8 +523,8 @@ export default function Home() {
               <h2>{sourceLabels[activeSource]}</h2>
               <p>
                 {activeSource === "base"
-                  ? "Website-listed plan rates using mock scraped data. Senoko sample rows show third-party charges separately and include them in the effective comparison rate."
-                  : "Employee-entered customer quotes using mock data. Quote ranges are shown where the exact offer may vary."}
+                  ? "Website-listed plan rates loaded from Supabase. Empty tables will show no rates until website prices are added or scraped."
+                  : "Employee-entered customer quotes loaded from Supabase. Quote ranges are shown where the exact offer may vary."}
               </p>
             </div>
           </div>
@@ -708,6 +543,16 @@ export default function Home() {
                 {company.name}
               </button>
             ))}
+          </div>
+
+          <div className="data-messages" aria-live="polite">
+            {companyLoadMessage ? <p className="form-message">{companyLoadMessage}</p> : null}
+            {websitePriceLoadMessage ? (
+              <p className="form-message">{websitePriceLoadMessage}</p>
+            ) : null}
+            {customerQuoteLoadMessage ? (
+              <p className="form-message">{customerQuoteLoadMessage}</p>
+            ) : null}
           </div>
 
           {activeSource === "manual" ? (
@@ -848,10 +693,6 @@ export default function Home() {
                 </div>
               </div>
               {quoteFormMessage ? <p className="form-message">{quoteFormMessage}</p> : null}
-              {companyLoadMessage ? <p className="form-message">{companyLoadMessage}</p> : null}
-              {customerQuoteLoadMessage ? (
-                <p className="form-message">{customerQuoteLoadMessage}</p>
-              ) : null}
             </form>
           ) : null}
 

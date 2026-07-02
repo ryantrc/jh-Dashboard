@@ -319,6 +319,13 @@ h1 {
   margin: 12px 0 0;
 }
 
+.data-messages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  margin-top: 10px;
+}
+
 .content-grid {
   display: grid;
   gap: 18px;
