@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 type DataSource = "base" | "manual";
@@ -43,6 +43,24 @@ type QuoteFormState = {
   rangeMin: string;
   rangeMax: string;
   notes: string;
+};
+
+type CustomerQuoteRow = {
+  id: number;
+  company_id: string;
+  plan_name: string;
+  plan_type: Quote["planType"];
+  contract_months: number;
+  rate: number | string;
+  gst_status: GstStatus;
+  third_party_charge: number | string | null;
+  effective_rate: number | string;
+  quote_range_min: number | string | null;
+  quote_range_max: number | string | null;
+  notes: string | null;
+  quoted_at: string | null;
+  updated_at: string | null;
+  created_at: string | null;
 };
 
 const companies: Company[] = [
@@ -323,6 +341,29 @@ function createEmptyQuoteForm(companyId = companies[0].id): QuoteFormState {
   };
 }
 
+function mapCustomerQuoteRow(row: CustomerQuoteRow): Quote {
+  const rangeMin = row.quote_range_min === null ? null : Number(row.quote_range_min);
+  const rangeMax = row.quote_range_max === null ? null : Number(row.quote_range_max);
+  const hasRange =
+    rangeMin !== null && rangeMax !== null && !Number.isNaN(rangeMin) && !Number.isNaN(rangeMax);
+
+  return {
+    id: `manual-${row.id}`,
+    source: "manual",
+    companyId: row.company_id,
+    planName: row.plan_name,
+    planType: row.plan_type,
+    contractMonths: row.contract_months,
+    rate: Number(row.rate),
+    gstStatus: row.gst_status,
+    thirdPartyCharge: row.third_party_charge === null ? 0 : Number(row.third_party_charge),
+    effectiveRate: Number(row.effective_rate),
+    updatedAt: row.quoted_at ?? row.updated_at ?? row.created_at ?? "No date",
+    notes: row.notes ?? "",
+    quoteRange: hasRange ? { min: rangeMin, max: rangeMax } : undefined,
+  };
+}
+
 export default function Home() {
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes);
   const [activeSource, setActiveSource] = useState<DataSource>("base");
@@ -336,6 +377,44 @@ export default function Home() {
   );
   const [isSavingQuote, setIsSavingQuote] = useState(false);
   const [quoteFormMessage, setQuoteFormMessage] = useState("");
+  const [customerQuoteLoadMessage, setCustomerQuoteLoadMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCustomerQuotes() {
+      const { data, error } = await supabase
+        .from("customer_quotes")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (error) {
+        setCustomerQuoteLoadMessage(`Could not load saved quotes: ${error.message}`);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setCustomerQuoteLoadMessage("No saved Supabase quotes yet. Showing sample manual quotes.");
+        return;
+      }
+
+      const baseQuotes = initialQuotes.filter((quote) => quote.source === "base");
+      const customerQuotes = (data as CustomerQuoteRow[]).map(mapCustomerQuoteRow);
+
+      setQuotes([...baseQuotes, ...customerQuotes]);
+      setCustomerQuoteLoadMessage(`${customerQuotes.length} saved customer quote(s) loaded.`);
+    }
+
+    loadCustomerQuotes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   function updateQuoteForm<Value extends keyof QuoteFormState>(
     field: Value,
@@ -703,6 +782,9 @@ export default function Home() {
                 </div>
               </div>
               {quoteFormMessage ? <p className="form-message">{quoteFormMessage}</p> : null}
+              {customerQuoteLoadMessage ? (
+                <p className="form-message">{customerQuoteLoadMessage}</p>
+              ) : null}
             </form>
           ) : null}
 
