@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 type DataSource = "base" | "manual";
 type GstStatus = "included" | "excluded" | "unknown";
@@ -333,6 +334,8 @@ export default function Home() {
   const [quoteForm, setQuoteForm] = useState<QuoteFormState>(() =>
     createEmptyQuoteForm(companies[0].id),
   );
+  const [isSavingQuote, setIsSavingQuote] = useState(false);
+  const [quoteFormMessage, setQuoteFormMessage] = useState("");
 
   function updateQuoteForm<Value extends keyof QuoteFormState>(
     field: Value,
@@ -344,7 +347,7 @@ export default function Home() {
     }));
   }
 
-  function handleAddManualQuote(event: FormEvent<HTMLFormElement>) {
+  async function handleAddManualQuote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const rate = Number(quoteForm.rate);
@@ -355,14 +358,47 @@ export default function Home() {
     const rangeMax = quoteForm.rangeMax.trim() === "" ? null : Number(quoteForm.rangeMax);
 
     if (!quoteForm.planName.trim() || !rate || !contractMonths) {
+      setQuoteFormMessage("Add a plan name, listed rate, and contract length.");
       return;
     }
 
     const hasValidRange =
       rangeMin !== null && rangeMax !== null && !Number.isNaN(rangeMin) && !Number.isNaN(rangeMax);
 
+    const thirdPartyChargeValue = Number.isNaN(thirdPartyCharge) ? 0 : thirdPartyCharge;
+    const effectiveRate = rate + thirdPartyChargeValue;
+    const today = getTodayDate();
+    const quoteId = Date.now();
+
+    setIsSavingQuote(true);
+    setQuoteFormMessage("");
+
+    const { error } = await supabase.from("customer_quotes").insert({
+      id: quoteId,
+      company_id: quoteForm.companyId,
+      plan_name: quoteForm.planName.trim(),
+      plan_type: quoteForm.planType,
+      contract_months: contractMonths,
+      rate,
+      gst_status: quoteForm.gstStatus,
+      third_party_charge: thirdPartyChargeValue,
+      effective_rate: effectiveRate,
+      quote_range_min: hasValidRange ? rangeMin : null,
+      quote_range_max: hasValidRange ? rangeMax : null,
+      notes: quoteForm.notes.trim() || "Manually entered quote.",
+      quoted_at: today,
+      updated_at: new Date().toISOString(),
+    });
+
+    setIsSavingQuote(false);
+
+    if (error) {
+      setQuoteFormMessage(`Could not save quote: ${error.message}`);
+      return;
+    }
+
     const newQuote: Quote = {
-      id: `manual-${quoteForm.companyId}-${Date.now()}`,
+      id: `manual-${quoteId}`,
       source: "manual",
       companyId: quoteForm.companyId,
       planName: quoteForm.planName.trim(),
@@ -370,9 +406,9 @@ export default function Home() {
       contractMonths,
       rate,
       gstStatus: quoteForm.gstStatus,
-      thirdPartyCharge: Number.isNaN(thirdPartyCharge) ? 0 : thirdPartyCharge,
-      effectiveRate: rate + (Number.isNaN(thirdPartyCharge) ? 0 : thirdPartyCharge),
-      updatedAt: getTodayDate(),
+      thirdPartyCharge: thirdPartyChargeValue,
+      effectiveRate,
+      updatedAt: today,
       notes: quoteForm.notes.trim() || "Manually entered quote.",
       quoteRange: hasValidRange ? { min: rangeMin, max: rangeMax } : undefined,
     };
@@ -384,6 +420,7 @@ export default function Home() {
     setPlanTypeFilter("all");
     setSearchFilter("");
     setQuoteForm(createEmptyQuoteForm(quoteForm.companyId));
+    setQuoteFormMessage("Quote saved to Supabase.");
   }
 
   const sourceQuotes = useMemo(
@@ -535,8 +572,8 @@ export default function Home() {
                   <h3>Add user-inputted quote</h3>
                   <p>Enter a customer quote here. It will be added to the current dashboard view.</p>
                 </div>
-                <button className="primary-button" type="submit">
-                  Add quote
+                <button className="primary-button" disabled={isSavingQuote} type="submit">
+                  {isSavingQuote ? "Saving..." : "Add quote"}
                 </button>
               </div>
 
@@ -665,6 +702,7 @@ export default function Home() {
                   />
                 </div>
               </div>
+              {quoteFormMessage ? <p className="form-message">{quoteFormMessage}</p> : null}
             </form>
           ) : null}
 
